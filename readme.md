@@ -62,6 +62,16 @@ The data generator is not supported, and I don't have any current plans to.
 
 ## External Resources
 
+*Saleae SDK*
+
 https://github.com/saleae/SampleAnalyzer/blob/master/docs/Analyzer_API.md
 
 https://support.saleae.com/saleae-api-and-sdk/protocol-analyzer-sdk
+
+*Maple Bus Resources*
+
+https://tech-en.netlify.app/articles/en540236/index.html
+
+http://mc.pp.se/dc/maplebus.html#cmds and http://mc.pp.se/dc/controller.html
+
+https://www.raphnet.net/programmation/dreamcast_usb/index_en.php
