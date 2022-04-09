@@ -5,7 +5,7 @@ Sega's Maple Bus is used on Dreamcast's controller interface.
 
 ## Build
 
-*Prerequisites*
+**Prerequisites**
 - For Windows: Visual Studio (Community Edition or better) https://visualstudio.microsoft.com/vs/
 - For other OS: Any CMake Builder
 - `git` command line executable (for Windows: https://gitforwindows.org/)
@@ -15,14 +15,14 @@ First, execute the following to pull down the AnalyzerSDK.
 git submodule update --init --recursive
 ```
 
-For Windows:
+**For Windows:**
 - Open Visual Studio
 - `File->Open->Folder...`
   - Visual Studio will try to execute `git`, so it is necessary to have `git` on command line installed
 - Select this repo
 - `Build->Build All`
 
-For any other OS:
+**For any other OS:**
 ```
 cd Maple-Bus-Saleae-Analyzer
 cmake .
@@ -62,13 +62,13 @@ The data generator is not supported, and I don't have any current plans to.
 
 ## External Resources
 
-*Saleae SDK*
+**Saleae SDK**
 
 https://github.com/saleae/SampleAnalyzer/blob/master/docs/Analyzer_API.md
 
 https://support.saleae.com/saleae-api-and-sdk/protocol-analyzer-sdk
 
-*Maple Bus Resources*
+**Maple Bus Resources**
 
 https://tech-en.netlify.app/articles/en540236/index.html
 
