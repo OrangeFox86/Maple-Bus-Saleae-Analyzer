@@ -3,7 +3,7 @@
 
 
 MapleBusAnalyzerSettings::MapleBusAnalyzerSettings()
-:	mInputChannelA( UNDEFINED_CHANNEL ), mInputChannelB( UNDEFINED_CHANNEL )
+    : mInputChannelA( UNDEFINED_CHANNEL ), mInputChannelB( UNDEFINED_CHANNEL ), mOutputStyle( 0 )
 {
 	mInputChannelAInterface.reset( new AnalyzerSettingInterfaceChannel() );
 	mInputChannelAInterface->SetTitleAndTooltip( "SDCKA", "Serial Data and Clock Line A" );
@@ -13,8 +13,15 @@ MapleBusAnalyzerSettings::MapleBusAnalyzerSettings()
     mInputChannelBInterface->SetTitleAndTooltip( "SDCKB", "Serial Data and Clock Line B" );
     mInputChannelBInterface->SetChannel( mInputChannelB );
 
+	mOutputStyleInterface.reset( new AnalyzerSettingInterfaceNumberList() );
+    mOutputStyleInterface->SetTitleAndTooltip( "Output Style", "Bubble Text Output Style" );
+    mOutputStyleInterface->AddNumber( 0, "Each Byte", "Show each byte" );
+    mOutputStyleInterface->AddNumber( 1, "Each Word", "Show each word" );
+    mOutputStyleInterface->SetNumber( mOutputStyle );
+
 	AddInterface( mInputChannelAInterface.get() );
     AddInterface( mInputChannelBInterface.get() );
+    AddInterface( mOutputStyleInterface.get() );
 
 	AddExportOption( 0, "Export as text/csv file" );
 	AddExportExtension( 0, "text", "txt" );
@@ -33,6 +40,7 @@ bool MapleBusAnalyzerSettings::SetSettingsFromInterfaces()
 {
     mInputChannelA = mInputChannelAInterface->GetChannel();
     mInputChannelB = mInputChannelBInterface->GetChannel();
+    mOutputStyle = mOutputStyleInterface->GetNumber();
 
 	ClearChannels();
     AddChannel( mInputChannelA, "SDCKA", true );
@@ -45,6 +53,7 @@ void MapleBusAnalyzerSettings::UpdateInterfacesFromSettings()
 {
     mInputChannelAInterface->SetChannel( mInputChannelA );
     mInputChannelBInterface->SetChannel( mInputChannelB );
+    mOutputStyleInterface->SetNumber( mOutputStyle );
 }
 
 void MapleBusAnalyzerSettings::LoadSettings( const char* settings )
@@ -54,6 +63,7 @@ void MapleBusAnalyzerSettings::LoadSettings( const char* settings )
 
 	text_archive >> mInputChannelA;
     text_archive >> mInputChannelB;
+    text_archive >> mOutputStyle;
 
 	ClearChannels();
     AddChannel( mInputChannelA, "SDCKA", true );
@@ -68,6 +78,7 @@ const char* MapleBusAnalyzerSettings::SaveSettings()
 
 	text_archive << mInputChannelA;
     text_archive << mInputChannelB;
+    text_archive << mOutputStyle;
 
 	return SetReturnString( text_archive.GetString() );
 }

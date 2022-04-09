@@ -9,7 +9,12 @@ class MapleBusAnalyzerSettings;
 class MapleBusAnalyzerResults : public AnalyzerResults
 {
 public:
-	MapleBusAnalyzerResults( MapleBusAnalyzer* analyzer, MapleBusAnalyzerSettings* settings );
+    enum class Type
+    {
+		BYTE, WORD
+    };
+
+	MapleBusAnalyzerResults( MapleBusAnalyzer* analyzer, MapleBusAnalyzerSettings* settings, Type type );
 	virtual ~MapleBusAnalyzerResults();
 
 	virtual void GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base );
@@ -19,11 +24,14 @@ public:
 	virtual void GeneratePacketTabularText( U64 packet_id, DisplayBase display_base );
 	virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
 
-protected: //functions
+	const Type mType;
+
+  protected: //functions
 
 protected:  //vars
 	MapleBusAnalyzerSettings* mSettings;
 	MapleBusAnalyzer* mAnalyzer;
+    
 };
 
 #endif //MAPLEBUS_ANALYZER_RESULTS

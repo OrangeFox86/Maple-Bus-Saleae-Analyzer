@@ -18,10 +18,12 @@ public:
 	
 	Channel mInputChannelA;
     Channel mInputChannelB;
+    double mOutputStyle;
 
 protected:
     std::auto_ptr<AnalyzerSettingInterfaceChannel> mInputChannelAInterface;
     std::auto_ptr<AnalyzerSettingInterfaceChannel> mInputChannelBInterface;
+    std::auto_ptr<AnalyzerSettingInterfaceNumberList> mOutputStyleInterface;
 };
 
 #endif //MAPLEBUS_ANALYZER_SETTINGS

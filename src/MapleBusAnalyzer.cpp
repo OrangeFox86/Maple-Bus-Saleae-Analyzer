@@ -19,8 +19,17 @@ MapleBusAnalyzer::~MapleBusAnalyzer()
 
 void MapleBusAnalyzer::SetupResults()
 {
-	mResults.reset( new MapleBusAnalyzerResults( this, mSettings.get() ) );
-	SetAnalyzerResults( mResults.get() );
+    MapleBusAnalyzerResults::Type analyzerType;
+    if( mSettings->mOutputStyle == 0 )
+    {
+        analyzerType = MapleBusAnalyzerResults::Type::BYTE;
+    }
+    else
+    {
+        analyzerType = MapleBusAnalyzerResults::Type::WORD;
+    }
+    mResults.reset( new MapleBusAnalyzerResults( this, mSettings.get(), analyzerType ) );
+    SetAnalyzerResults( mResults.get() );
     mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannelA );
     mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannelB );
 }
@@ -142,7 +151,12 @@ void MapleBusAnalyzer::WorkerThread()
         bool endDetected = false;
         errorDetected = false;
         S32 totalBytesExpected = -1;
+        S32 totalWordsExpected = -1;
         S32 numBytesLeftExpected = -1;
+        S32 numWordsLeftExpected = -1;
+        U32 byteCount = 0;
+        U32 word = 0;
+        U64 wordStartingSample = 0;
         while( !endDetected && !errorDetected )
         {
             U64 startingSample = mSerialA->GetSampleNumber();
@@ -253,7 +267,9 @@ void MapleBusAnalyzer::WorkerThread()
             if( !endDetected && !errorDetected )
             {
                 // we have a byte to save.
-                if( totalBytesExpected < 0 )
+                ++byteCount;
+
+                if( byteCount == 1 )
                 {
                     // This is the first byte which tells us how many extra 32-bit words to expect
                     totalBytesExpected = b * 4;
@@ -269,16 +285,74 @@ void MapleBusAnalyzer::WorkerThread()
                     --numBytesLeftExpected;
                 }
 
-                Frame frame;
-                frame.mData1 = b;
-                frame.mData2 = numBytesLeftExpected;
-                frame.mFlags = 0;
-                frame.mStartingSampleInclusive = startingSample;
-                frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
+                if( mResults->mType == MapleBusAnalyzerResults::Type::BYTE )
+                {
+                    Frame frame;
+                    frame.mData1 = b;
+                    frame.mData2 = numBytesLeftExpected;
+                    frame.mFlags = 0;
+                    frame.mStartingSampleInclusive = startingSample;
+                    frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
 
-                mResults->AddFrame( frame );
-                mResults->CommitResults();
-                ReportProgress( frame.mEndingSampleInclusive );
+                    mResults->AddFrame( frame );
+                    mResults->CommitResults();
+                    ReportProgress( frame.mEndingSampleInclusive );
+                }
+
+                // Build word for little endian
+                word = word >> 8;
+                word |= (static_cast<U32>( b ) << 24);
+
+                if( byteCount == 1 )
+                {
+                    totalWordsExpected = b + 1;
+                    numWordsLeftExpected = totalWordsExpected;
+                }
+                else if( byteCount % 4 == 0 )
+                {
+                    // We have a word to save
+                    if( numWordsLeftExpected > 0 )
+                    {
+                        --numWordsLeftExpected;
+                    }
+
+                    if( mResults->mType == MapleBusAnalyzerResults::Type::WORD )
+                    {
+                        Frame frame;
+                        frame.mData1 = word;
+                        frame.mData2 = numWordsLeftExpected;
+                        if( byteCount == 4 )
+                        {
+                            frame.mData2 |= ( static_cast<U64>( 1 ) << 32 );
+                        }
+                        frame.mStartingSampleInclusive = wordStartingSample;
+                        frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
+
+                        mResults->AddFrame( frame );
+                        mResults->CommitResults();
+                    }
+                    word = 0;
+                }
+                else if( numBytesLeftExpected == 0 )
+                {
+                    if( mResults->mType == MapleBusAnalyzerResults::Type::WORD )
+                    {
+                        // CRC byte
+                        Frame frame;
+                        frame.mData1 = b;
+                        frame.mData2 = ( static_cast<U64>( 2 ) << 32 );
+                        frame.mStartingSampleInclusive = startingSample;
+                        frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
+
+                        mResults->AddFrame( frame );
+                        mResults->CommitResults();
+                    }
+                }
+
+                if( byteCount % 4 == 1 )
+                {
+                    wordStartingSample = startingSample;
+                }
             }
         }
 	}
