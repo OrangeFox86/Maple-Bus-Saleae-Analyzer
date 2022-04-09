@@ -17,8 +17,25 @@ MapleBusAnalyzerResults::~MapleBusAnalyzerResults()
 {
 }
 
+U64 MapleBusAnalyzerResults::EncodeData2( U32 numItemsLeft, WordType wordType = WORD_TYPE_NONE )
+{
+    return static_cast<U64>( numItemsLeft ) | ( static_cast<U64>( wordType ) << 32 );
+}
+
+void MapleBusAnalyzerResults::DecodeData2( U64 data2, U32& numItemsLeftOut, WordType& wordTypeOut )
+{
+    numItemsLeftOut = data2 & 0xFFFFFFFF;
+    U32 wordTypeInt = ( data2 >> 32 );
+    wordTypeOut = WORD_TYPE_NONE;
+    if(wordTypeInt < WORD_TYPE_COUNT)
+    {
+        wordTypeOut = static_cast<WordType>( wordTypeInt );
+    }
+}
+
 void MapleBusAnalyzerResults::GenerateNumberStr( char* str, U32 len, const Frame& frame, DisplayBase display_base, bool forExport ) const
 {
+
     switch( mType )
     {
         default:
@@ -30,16 +47,12 @@ void MapleBusAnalyzerResults::GenerateNumberStr( char* str, U32 len, const Frame
 
         case Type::WORD:
         {
-            // mData: Word or byte value
-            // Upper 32 bits of mData2:
-            // 0: Data word
-            // 1: Frame word
-            // 2: CRC byte
-            // Lower 32 bits of mData2: Number of words left
+            U32 numItemsLeft = 0;
+            WordType wordType = WORD_TYPE_NONE;
+            DecodeData2( frame.mData2, numItemsLeft, wordType );
 
             U32 numDataBits = 8 * 4;
-            U32 dataType = frame.mData2 >> 32;
-            if( dataType == 2 )
+            if( wordType == WORD_TYPE_CRC )
             {
                 // CRC byte
                 numDataBits = 8;
@@ -50,15 +63,11 @@ void MapleBusAnalyzerResults::GenerateNumberStr( char* str, U32 len, const Frame
 
         case Type::WORD_BYTES:
         {
-            // mData: Word or byte value
-            // Upper 32 bits of mData2:
-            // 0: Data word
-            // 1: Frame word
-            // 2: CRC byte
-            // Lower 32 bits of mData2: Number of words left
+            U32 numItemsLeft = 0;
+            WordType wordType = WORD_TYPE_NONE;
+            DecodeData2( frame.mData2, numItemsLeft, wordType );
 
-            U32 dataType = frame.mData2 >> 32;
-            if( dataType == 2 )
+            if( wordType == WORD_TYPE_CRC )
             {
                 // CRC byte
                 if( forExport )
@@ -111,18 +120,14 @@ void MapleBusAnalyzerResults::GenerateExtraInfoStr( char* str, U32 len, const Fr
         case Type::WORD:
         case Type::WORD_BYTES:
         {
-            // mData: Word or byte value
-            // Upper 32 bits of mData2:
-            // 0: Data word
-            // 1: Frame word
-            // 2: CRC byte
-            // Lower 32 bits of mData2: Number of words left
+            U32 numItemsLeft = 0;
+            WordType wordType = WORD_TYPE_NONE;
+            DecodeData2( frame.mData2, numItemsLeft, wordType );
 
-            U32 dataType = frame.mData2 >> 32;
             char type_str[ 8 ] = {};
-            switch( dataType )
+            switch( wordType )
             {
-                case 1:
+                case WORD_TYPE_FRAME:
                 {
                     if( forExport )
                     {
@@ -135,7 +140,7 @@ void MapleBusAnalyzerResults::GenerateExtraInfoStr( char* str, U32 len, const Fr
                     break;
                 }
 
-                case 2:
+                case WORD_TYPE_CRC:
                 {
                     if( forExport )
                     {
@@ -159,7 +164,7 @@ void MapleBusAnalyzerResults::GenerateExtraInfoStr( char* str, U32 len, const Fr
                     {
                         format = "%u";
                     }
-                    snprintf( type_str, sizeof( type_str ), format, static_cast<U32>( frame.mData2 & 0xFFFFFFFF ) );
+                    snprintf( type_str, sizeof( type_str ), format, numItemsLeft );
                 }
                 break;
 

@@ -7,6 +7,13 @@
 class MapleBusAnalyzerSettings : public AnalyzerSettings
 {
 public:
+	enum OutputStyleNumber
+	{
+		OUTPUT_STYLE_EACH_BYTE = 0,
+		OUTPUT_STYLE_EACH_WORD,
+		OUTPUT_STYLE_WORD_BYTES
+	};
+
 	MapleBusAnalyzerSettings();
 	virtual ~MapleBusAnalyzerSettings();
 
@@ -15,7 +22,6 @@ public:
 	virtual void LoadSettings( const char* settings );
 	virtual const char* SaveSettings();
 
-	
 	Channel mInputChannelA;
     Channel mInputChannelB;
     double mOutputStyle;

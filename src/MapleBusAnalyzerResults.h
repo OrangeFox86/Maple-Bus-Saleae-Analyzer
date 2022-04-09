@@ -14,6 +14,16 @@ public:
 		BYTE, WORD, WORD_BYTES
     };
 
+	enum WordType
+    {
+		WORD_TYPE_NONE = 0,
+		WORD_TYPE_DATA = 0,
+		WORD_TYPE_FRAME,
+		WORD_TYPE_CRC,
+
+		WORD_TYPE_COUNT
+    };
+
 	MapleBusAnalyzerResults( MapleBusAnalyzer* analyzer, MapleBusAnalyzerSettings* settings, Type type );
 	virtual ~MapleBusAnalyzerResults();
 
@@ -23,6 +33,9 @@ public:
 	virtual void GenerateFrameTabularText(U64 frame_index, DisplayBase display_base );
 	virtual void GeneratePacketTabularText( U64 packet_id, DisplayBase display_base );
 	virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
+
+	static U64 EncodeData2( U32 numItemsLeft, WordType wordType = WORD_TYPE_NONE );
+    static void DecodeData2( U64 data2, U32& numItemsLeftOut, WordType& wordTypeOut );
 
 	const Type mType;
 
