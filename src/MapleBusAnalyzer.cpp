@@ -24,9 +24,13 @@ void MapleBusAnalyzer::SetupResults()
     {
         analyzerType = MapleBusAnalyzerResults::Type::BYTE;
     }
-    else
+    else if( mSettings->mOutputStyle == 1 )
     {
         analyzerType = MapleBusAnalyzerResults::Type::WORD;
+    }
+    else if( mSettings->mOutputStyle == 2 )
+    {
+        analyzerType = MapleBusAnalyzerResults::Type::WORD_BYTES;
     }
     mResults.reset( new MapleBusAnalyzerResults( this, mSettings.get(), analyzerType ) );
     SetAnalyzerResults( mResults.get() );
@@ -316,7 +320,8 @@ void MapleBusAnalyzer::WorkerThread()
                         --numWordsLeftExpected;
                     }
 
-                    if( mResults->mType == MapleBusAnalyzerResults::Type::WORD )
+                    if( mResults->mType == MapleBusAnalyzerResults::Type::WORD || 
+                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES )
                     {
                         Frame frame;
                         frame.mData1 = word;
@@ -335,7 +340,8 @@ void MapleBusAnalyzer::WorkerThread()
                 }
                 else if( numBytesLeftExpected == 0 )
                 {
-                    if( mResults->mType == MapleBusAnalyzerResults::Type::WORD )
+                    if( mResults->mType == MapleBusAnalyzerResults::Type::WORD ||
+                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES )
                     {
                         // CRC byte
                         Frame frame;

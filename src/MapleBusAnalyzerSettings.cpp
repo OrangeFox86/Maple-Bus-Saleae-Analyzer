@@ -16,7 +16,8 @@ MapleBusAnalyzerSettings::MapleBusAnalyzerSettings()
 	mOutputStyleInterface.reset( new AnalyzerSettingInterfaceNumberList() );
     mOutputStyleInterface->SetTitleAndTooltip( "Output Style", "Bubble Text Output Style" );
     mOutputStyleInterface->AddNumber( 0, "Each Byte", "Show each byte" );
-    mOutputStyleInterface->AddNumber( 1, "Each Word", "Show each word" );
+    mOutputStyleInterface->AddNumber( 1, "Each Word (little endian)", "Show each word (little endian)" );
+    mOutputStyleInterface->AddNumber( 2, "Word Bytes", "Show bytes, grouped by word" );
     mOutputStyleInterface->SetNumber( mOutputStyle );
 
 	AddInterface( mInputChannelAInterface.get() );

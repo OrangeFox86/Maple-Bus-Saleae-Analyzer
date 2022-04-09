@@ -11,7 +11,7 @@ class MapleBusAnalyzerResults : public AnalyzerResults
 public:
     enum class Type
     {
-		BYTE, WORD
+		BYTE, WORD, WORD_BYTES
     };
 
 	MapleBusAnalyzerResults( MapleBusAnalyzer* analyzer, MapleBusAnalyzerSettings* settings, Type type );
@@ -27,6 +27,8 @@ public:
 	const Type mType;
 
   protected: //functions
+    void GenerateNumberStr( char* str, U32 len, const Frame& frame, DisplayBase display_base, bool forExport ) const;
+    void GenerateExtraInfoStr( char* str, U32 len, const Frame& frame, bool forExport ) const;
 
 protected:  //vars
 	MapleBusAnalyzerSettings* mSettings;
