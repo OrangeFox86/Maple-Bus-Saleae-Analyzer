@@ -46,12 +46,15 @@ Select the two data lines and what kind of output style to view/export.
 
 This is what the output will look like if SDCKA is channel 0, SDCKB is channel 1, and output style is `Each Byte`:
 ![sample](sample.jpg?raw=true)
+Byte index is displayed within parentheses next to each byte value.
 
 This is output style `Each Word (little endian)`:
 ![sample_each_word](sample_each_word.jpg?raw=true)
+(F) stands for Frame Word, (C) stands for CRC byte, and (#) is the data word index where # is an integer value.
 
 This is output style `Word Bytes`:
 ![sample_word_bytes](sample_word_bytes.jpg?raw=true)
+(F) stands for Frame Word, (C) stands for CRC byte, and (#) is the data word index where # is an integer value.
 
 ### Data Generator
 
@@ -60,4 +63,5 @@ The data generator is not supported, and I don't have any current plans to.
 ## External Resources
 
 https://github.com/saleae/SampleAnalyzer/blob/master/docs/Analyzer_API.md
+
 https://support.saleae.com/saleae-api-and-sdk/protocol-analyzer-sdk
