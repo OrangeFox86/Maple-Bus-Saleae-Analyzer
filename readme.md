@@ -8,9 +8,11 @@ Sega's Maple Bus is used on Dreamcast's controller interface.
 **Prerequisites**
 - For Windows: Visual Studio (Community Edition or better) https://visualstudio.microsoft.com/vs/
 - For other OS: Any CMake Builder
-- `git` command line executable (for Windows: https://gitforwindows.org/)
+- `git` command line executable 
+  - For Windows, use: https://gitforwindows.org/
 
-First, execute the following to pull down the AnalyzerSDK.
+**Getting the Saleae Analizer SDK**
+First, execute the following to pull down the AnalyzerSDK. This is the only dependency of this library.
 ```
 git submodule update --init --recursive
 ```
@@ -18,8 +20,8 @@ git submodule update --init --recursive
 **For Windows:**
 - Open Visual Studio
 - `File->Open->Folder...`
-  - Visual Studio will try to execute `git`, so it is necessary to have `git` on command line installed
 - Select this repo
+  - Visual Studio will try to execute `git`, so it is necessary to have `git` on command line installed
 - `Build->Build All`
 
 **For any other OS:**
