@@ -19,10 +19,6 @@ protected:
 	U32 mSimulationSampleRateHz;
 
 protected:
-	void CreateSerialByte();
-	std::string mSerialText;
-	U32 mStringIndex;
-
 	SimulationChannelDescriptor mSerialASimulationData;
     SimulationChannelDescriptor mSerialBSimulationData;
 

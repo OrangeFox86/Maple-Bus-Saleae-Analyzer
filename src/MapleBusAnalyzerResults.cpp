@@ -2,6 +2,7 @@
 #include <AnalyzerHelpers.h>
 #include "MapleBusAnalyzer.h"
 #include "MapleBusAnalyzerSettings.h"
+#include <stdio.h>
 #include <iostream>
 #include <fstream>
 
