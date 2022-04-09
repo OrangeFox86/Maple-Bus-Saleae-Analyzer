@@ -1,6 +1,8 @@
 #include "MapleBusAnalyzer.h"
 #include "MapleBusAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
+#include <string>
+#include <sstream>
 
 MapleBusAnalyzer::MapleBusAnalyzer()
 :	Analyzer2(),  
@@ -68,6 +70,13 @@ void MapleBusAnalyzer::WorkerThread()
     bool errorDetected = false;
 	while(true)
     {
+        if( errorDetected )
+        {
+            // These markers tend to collide with markers that matter
+            // mResults->AddMarker( mSerialA->GetSampleNumber(), AnalyzerResults::ErrorX, mSettings->mInputChannelA );
+            // mResults->AddMarker( mSerialB->GetSampleNumber(), AnalyzerResults::ErrorX, mSettings->mInputChannelB );
+        }
+
         AdvanceToNeutral();
 
         if(errorDetected)
@@ -132,6 +141,8 @@ void MapleBusAnalyzer::WorkerThread()
 
         bool endDetected = false;
         errorDetected = false;
+        S32 totalBytesExpected = -1;
+        S32 numBytesLeftExpected = -1;
         while( !endDetected && !errorDetected )
         {
             U64 startingSample = mSerialA->GetSampleNumber();
@@ -166,82 +177,50 @@ void MapleBusAnalyzer::WorkerThread()
                     clock->AdvanceToNextEdge();
                 }
 
+                // Go to clock falling edge
                 clock->AdvanceToNextEdge();
                 U64 clockEdgeSample = clock->GetSampleNumber();
 
-
-
-
-
-                
                 U32 numDataEdges = 0;
                 if( i == 0 )
                 {
-                    // TODO: This needs to be cleaned up.
-                    // This is very very rough. I wrote it in a way that helped me debug.
-
                     // Check for END
-                    while( data->GetSampleOfNextEdge() < clockEdgeSample )
+                    while( numDataEdges < 3 && data->GetSampleOfNextEdge() < clockEdgeSample )
                     {
-                        data->AdvanceToNextEdge();
+                        if( numDataEdges < 2 )
+                        {
+                            data->AdvanceToNextEdge();
+                        }
                         numDataEdges++;
                     }
-                    if( data->GetBitState() == BIT_LOW )
+                    if( numDataEdges == 2 )
                     {
-                        // Could be an end state
+                        // Either we reached the end or error detected
                         U64 markerBegin = data->GetSampleNumber();
                         U64 markerEnd = data->GetSampleOfNextEdge();
-                        if (clock->GetSampleOfNextEdge() < markerEnd)
+                        U32 numClockEdges = 0;
+
+                        for( ; numClockEdges < 3 && clock->GetSampleOfNextEdge() < markerEnd; ++numClockEdges )
                         {
-                            // This goes to rising edge
+                            // Go to rising then falling then rising
                             clock->AdvanceToNextEdge();
-                            if( clock->GetSampleOfNextEdge() < markerEnd )
-                            {
-                                // Either error or end detected
-                                // Goes to falling edgs
-                                clock->AdvanceToNextEdge();
-                                if( clock->GetSampleOfNextEdge() < markerEnd )
-                                {
-                                    clock->AdvanceToNextEdge();
-                                    if( clock->GetSampleOfNextEdge() > markerEnd )
-                                    {
-                                        endDetected = true;
-                                        mResults->AddMarker( markerEnd, AnalyzerResults::Stop, mSettings->mInputChannelA );
-                                        mResults->AddMarker( markerEnd, AnalyzerResults::Stop, mSettings->mInputChannelB );
-                                        continue;
-                                    }
-                                    else
-                                    {
-                                        errorDetected = true;
-                                        continue;
-                                    }
-                                }
-                                else
-                                {
-                                    errorDetected = true;
-                                    continue;
-                                }
-                            }
-                            else if( numDataEdges <= 1 )
-                            {
-                                // Mistakes were made - this looks like a normal bit, and it was 0
-                                AlignSerialMarkers();
-                                continue;
-                            }
-                            else
-                            {
-                                errorDetected = true;
-                                continue;
-                            }
                         }
+
+                        if( numClockEdges == 3 && clock->GetSampleOfNextEdge() > markerEnd )
+                        {
+                            endDetected = true;
+                            mResults->AddMarker( markerEnd, AnalyzerResults::Stop, mSettings->mInputChannelA );
+                            mResults->AddMarker( markerEnd, AnalyzerResults::Stop, mSettings->mInputChannelB );
+                            mSerialA->AdvanceToAbsPosition( markerEnd );
+                            mSerialB->AdvanceToAbsPosition( markerEnd );
+                        }
+                        else
+                        {
+                            errorDetected = true;
+                        }
+                        continue;
                     }
                 }
-
-
-
-
-
-
 
                 while( numDataEdges < 2 && data->GetSampleOfNextEdge() < clockEdgeSample )
                 {
@@ -274,8 +253,25 @@ void MapleBusAnalyzer::WorkerThread()
             if( !endDetected && !errorDetected )
             {
                 // we have a byte to save.
+                if( totalBytesExpected < 0 )
+                {
+                    // This is the first byte which tells us how many extra 32-bit words to expect
+                    totalBytesExpected = b * 4;
+                    // Add 4 bytes for the first frame
+                    totalBytesExpected += 4;
+                    // Add 1 byte for the CRC value
+                    totalBytesExpected += 1;
+
+                    numBytesLeftExpected = totalBytesExpected - 1;
+                }
+                else if( numBytesLeftExpected > 0 )
+                {
+                    --numBytesLeftExpected;
+                }
+
                 Frame frame;
                 frame.mData1 = b;
+                frame.mData2 = numBytesLeftExpected;
                 frame.mFlags = 0;
                 frame.mStartingSampleInclusive = startingSample;
                 frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();

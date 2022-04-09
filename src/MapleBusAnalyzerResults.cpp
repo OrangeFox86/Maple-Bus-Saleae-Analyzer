@@ -21,9 +21,11 @@ void MapleBusAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& chan
 	ClearResultStrings();
 	Frame frame = GetFrame( frame_index );
 
-	char number_str[128];
-	AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
-	AddResultString( number_str );
+	char number_str[ 16 ];
+    AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, sizeof(number_str) );
+    char output_str[ 128 ];
+    snprintf( output_str, sizeof( output_str ), "%s (%u)", number_str, frame.mData2 );
+    AddResultString( output_str );
 }
 
 void MapleBusAnalyzerResults::GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id )
