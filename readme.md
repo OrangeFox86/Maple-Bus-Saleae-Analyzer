@@ -39,6 +39,8 @@ Execute the Saleae software and open up the Preferences dialog.
 Go to the `Custom Low Level Analyzers` setting and browse to the directory which contains the compiled `.dll` for Windows or `.so` for Linux.
 ![custom_analyzers_setting](custom_analyzers_setting.jpg?raw=true)
 
+In order for the library to be loaded, you must then close and then reopen the Logic application.
+
 ### Configuring the Maple Bus Analyzer
 
 Select the two data lines and what kind of output style to view/export.
