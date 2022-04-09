@@ -17,7 +17,7 @@ MapleBusAnalyzerResults::~MapleBusAnalyzerResults()
 {
 }
 
-U64 MapleBusAnalyzerResults::EncodeData2( U32 numItemsLeft, WordType wordType = WORD_TYPE_NONE )
+U64 MapleBusAnalyzerResults::EncodeData2( U32 numItemsLeft, WordType wordType )
 {
     return static_cast<U64>( numItemsLeft ) | ( static_cast<U64>( wordType ) << 32 );
 }
