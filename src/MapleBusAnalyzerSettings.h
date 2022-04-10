@@ -6,31 +6,50 @@
 
 class MapleBusAnalyzerSettings : public AnalyzerSettings
 {
-public:
-	enum OutputStyleNumber
-	{
-		OUTPUT_STYLE_EACH_BYTE = 0,
-		OUTPUT_STYLE_EACH_WORD,
-		OUTPUT_STYLE_WORD_BYTES,
-		OUTPUT_STYLE_WORD_BYTES_LE,
-	};
+  public:
+    //! Output style menu options
+    enum OutputStyleNumber
+    {
+        OUTPUT_STYLE_EACH_BYTE = 0,
+        OUTPUT_STYLE_EACH_WORD,
+        OUTPUT_STYLE_WORD_BYTES,
+        OUTPUT_STYLE_WORD_BYTES_LE,
 
-	MapleBusAnalyzerSettings();
-	virtual ~MapleBusAnalyzerSettings();
+        //! Used for conversion only
+        OUTPUT_STYLE_COUNT
+    };
 
-	virtual bool SetSettingsFromInterfaces();
-	void UpdateInterfacesFromSettings();
-	virtual void LoadSettings( const char* settings );
-	virtual const char* SaveSettings();
+    //! Constructor
+    MapleBusAnalyzerSettings();
+    //! Destructor
+    virtual ~MapleBusAnalyzerSettings();
 
-	Channel mInputChannelA;
+    //! API: load settings from my interfaces
+    //! @returns true always
+    virtual bool SetSettingsFromInterfaces();
+    //! API: set interface from my settings
+    void UpdateInterfacesFromSettings();
+    //! API: load settings from string
+    //! @param[in] settings  input settings string
+    virtual void LoadSettings(const char* settings);
+    //! API: save settings to string
+    //! @returns settings string
+    virtual const char* SaveSettings();
+
+    //! Converts a number to output style enum
+    static OutputStyleNumber NumberToOutputStyle(double num);
+
+    //! The selected input channel
+    Channel mInputChannelA;
+    //! The selected output channel
     Channel mInputChannelB;
-    double mOutputStyle;
+    //! The selected data output style
+    OutputStyleNumber mOutputStyle;
 
-protected:
+  protected:
     std::auto_ptr<AnalyzerSettingInterfaceChannel> mInputChannelAInterface;
     std::auto_ptr<AnalyzerSettingInterfaceChannel> mInputChannelBInterface;
     std::auto_ptr<AnalyzerSettingInterfaceNumberList> mOutputStyleInterface;
 };
 
-#endif //MAPLEBUS_ANALYZER_SETTINGS
+#endif // MAPLEBUS_ANALYZER_SETTINGS

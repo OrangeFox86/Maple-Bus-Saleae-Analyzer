@@ -8,46 +8,74 @@ class MapleBusAnalyzerSettings;
 
 class MapleBusAnalyzerResults : public AnalyzerResults
 {
-public:
-    enum class Type
+  public:
+    //! Determines how to handle Frame::mData1
+    enum class DataFormat
     {
-		BYTE, WORD, WORD_BYTES, WORD_BYTES_LE
+        //! Expect each frame is a byte of data.
+        //! Data is processed verbatim in the order they are received.
+        BYTE,
+        //! Expect each frame is a 32-bit word in little endian order except 8-bit CRC codes.
+        //! Data is processed verbatim in the order they are received.
+        WORD,
+        //! Expect each frame is a 32-bit word in little endian order except 8-bit CRC codes.
+        //! Each word is processed in order and such that the LSB is printed first.
+        WORD_BYTES,
+        //! Expect each frame is a 32-bit word in little endian order except 8-bit CRC codes.
+        //! Each word is processed in order and such that the MSB is printed first.
+        WORD_BYTES_LE
     };
 
-	enum WordType
+    //! Data type for the data in a result frame (Frame::mType values)
+    enum FrameDataType
     {
-		WORD_TYPE_NONE = 0,
-		WORD_TYPE_DATA = 0,
-		WORD_TYPE_FRAME,
-		WORD_TYPE_CRC,
-
-		WORD_TYPE_COUNT
+        //! No data type (default type)
+        FRAME_DATA_TYPE_NONE = 0,
+        //! Data within the frame is payload data
+        FRAME_DATA_TYPE_PAYLOAD = 0,
+        //! Data within the frame is Maple Bus frame data
+        FRAME_DATA_TYPE_FRAME,
+        //! Data within the frame is a CRC byte
+        FRAME_DATA_TYPE_CRC
     };
 
-	MapleBusAnalyzerResults( MapleBusAnalyzer* analyzer, MapleBusAnalyzerSettings* settings, Type type );
-	virtual ~MapleBusAnalyzerResults();
+    //! Constructor
+    MapleBusAnalyzerResults(MapleBusAnalyzer* analyzer, MapleBusAnalyzerSettings* settings, DataFormat type);
+    //! Destructor
+    virtual ~MapleBusAnalyzerResults();
 
-	virtual void GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base );
-	virtual void GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id );
+    //! API: Generate the text seen above samples for a given frame and channel
+    virtual void GenerateBubbleText(U64 frame_index, Channel& channel, DisplayBase display_base);
+    //! API: Export all frame data to the given file path
+    virtual void GenerateExportFile(const char* file, DisplayBase display_base, U32 export_type_user_id);
 
-	virtual void GenerateFrameTabularText(U64 frame_index, DisplayBase display_base );
-	virtual void GeneratePacketTabularText( U64 packet_id, DisplayBase display_base );
-	virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
+    virtual void GenerateFrameTabularText(U64 frame_index, DisplayBase display_base);
+    virtual void GeneratePacketTabularText(U64 packet_id, DisplayBase display_base);
+    virtual void GenerateTransactionTabularText(U64 transaction_id, DisplayBase display_base);
 
-	static U64 EncodeData2( U32 numItemsLeft, WordType wordType = WORD_TYPE_NONE );
-    static void DecodeData2( U64 data2, U32& numItemsLeftOut, WordType& wordTypeOut );
+    //! Determines how this object will handle Frame::mData1
+    const DataFormat mDataFormat;
 
-	const Type mType;
+  protected: // functions
+    //! Generates the number string for bubble text and export file
+    //! @param[out] str  output string buffer
+    //! @param[in] len  byte length of str
+    //! @param[in] frame  frame from which contains the data to generate data
+    //! @param[in] display_base  contains string formatting information
+    //! @param[in] forExport  true iff the string is being generated for export;
+    //!                       this will add comma separation to byte values when true
+    void GenerateNumberStr(char* str, U32 len, const Frame& frame, DisplayBase display_base, bool forExport) const;
+    //! Generate extra information about a frame for bubble text
+    //! @param[out] str  output string buffer
+    //! @param[in] len  byte length of str
+    //! @param[in] frame  frame from which contains the data to generate data
+    void GenerateExtraInfoStr(char* str, U32 len, const Frame& frame) const;
 
-  protected: //functions
-    void GenerateNumberStr( char* str, U32 len, const Frame& frame, DisplayBase display_base, bool forExport ) const;
-	// @returns number of frames left
-    U32 GenerateExtraInfoStr( char* str, U32 len, const Frame& frame, bool forExport ) const;
-
-protected:  //vars
-	MapleBusAnalyzerSettings* mSettings;
-	MapleBusAnalyzer* mAnalyzer;
-    
+  protected: // vars
+    //! Pointer to my input settings
+    MapleBusAnalyzerSettings* mSettings;
+    //! Pointer back to the analyzer that made me
+    MapleBusAnalyzer* mAnalyzer;
 };
 
-#endif //MAPLEBUS_ANALYZER_RESULTS
+#endif // MAPLEBUS_ANALYZER_RESULTS
