@@ -11,7 +11,7 @@ class MapleBusAnalyzerResults : public AnalyzerResults
 public:
     enum class Type
     {
-		BYTE, WORD, WORD_BYTES
+		BYTE, WORD, WORD_BYTES, WORD_BYTES_LE
     };
 
 	enum WordType

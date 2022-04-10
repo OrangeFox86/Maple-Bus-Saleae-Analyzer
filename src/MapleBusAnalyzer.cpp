@@ -20,17 +20,21 @@ MapleBusAnalyzer::~MapleBusAnalyzer()
 void MapleBusAnalyzer::SetupResults()
 {
     MapleBusAnalyzerResults::Type analyzerType;
-    if( mSettings->mOutputStyle == MapleBusAnalyzerSettings::OUTPUT_STYLE_EACH_BYTE )
-    {
-        analyzerType = MapleBusAnalyzerResults::Type::BYTE;
-    }
-    else if( mSettings->mOutputStyle == MapleBusAnalyzerSettings::OUTPUT_STYLE_EACH_WORD )
+    if( mSettings->mOutputStyle == MapleBusAnalyzerSettings::OUTPUT_STYLE_EACH_WORD )
     {
         analyzerType = MapleBusAnalyzerResults::Type::WORD;
     }
     else if( mSettings->mOutputStyle == MapleBusAnalyzerSettings::OUTPUT_STYLE_WORD_BYTES )
     {
         analyzerType = MapleBusAnalyzerResults::Type::WORD_BYTES;
+    }
+    else if( mSettings->mOutputStyle == MapleBusAnalyzerSettings::OUTPUT_STYLE_WORD_BYTES_LE )
+    {
+        analyzerType = MapleBusAnalyzerResults::Type::WORD_BYTES_LE;
+    }
+    else
+    {
+        analyzerType = MapleBusAnalyzerResults::Type::BYTE;
     }
     mResults.reset( new MapleBusAnalyzerResults( this, mSettings.get(), analyzerType ) );
     SetAnalyzerResults( mResults.get() );
@@ -293,7 +297,16 @@ void MapleBusAnalyzer::WorkerThread()
                 {
                     Frame frame;
                     frame.mData1 = b;
-                    frame.mData2 = MapleBusAnalyzerResults::EncodeData2( numBytesLeftExpected );
+                    MapleBusAnalyzerResults::WordType wordType = MapleBusAnalyzerResults::WORD_TYPE_DATA;
+                    if( byteCount < 5 )
+                    {
+                        wordType = MapleBusAnalyzerResults::WORD_TYPE_FRAME;
+                    }
+                    else if( numBytesLeftExpected == 0 )
+                    {
+                        wordType = MapleBusAnalyzerResults::WORD_TYPE_CRC;
+                    }
+                    frame.mData2 = MapleBusAnalyzerResults::EncodeData2( numBytesLeftExpected, wordType );
                     frame.mFlags = 0;
                     frame.mStartingSampleInclusive = startingSample;
                     frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
@@ -321,7 +334,8 @@ void MapleBusAnalyzer::WorkerThread()
                     }
 
                     if( mResults->mType == MapleBusAnalyzerResults::Type::WORD || 
-                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES )
+                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES ||
+                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES_LE )
                     {
                         Frame frame;
                         frame.mData1 = word;
@@ -342,7 +356,8 @@ void MapleBusAnalyzer::WorkerThread()
                 else if( numBytesLeftExpected == 0 )
                 {
                     if( mResults->mType == MapleBusAnalyzerResults::Type::WORD ||
-                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES )
+                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES ||
+                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES_LE )
                     {
                         // CRC byte
                         Frame frame;

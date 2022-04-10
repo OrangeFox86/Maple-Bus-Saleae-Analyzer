@@ -3,7 +3,7 @@
 
 
 MapleBusAnalyzerSettings::MapleBusAnalyzerSettings()
-    : mInputChannelA( UNDEFINED_CHANNEL ), mInputChannelB( UNDEFINED_CHANNEL ), mOutputStyle( 0 )
+    : mInputChannelA( UNDEFINED_CHANNEL ), mInputChannelB( UNDEFINED_CHANNEL ), mOutputStyle( OUTPUT_STYLE_WORD_BYTES_LE )
 {
 	mInputChannelAInterface.reset( new AnalyzerSettingInterfaceChannel() );
 	mInputChannelAInterface->SetTitleAndTooltip( "SDCKA", "Serial Data and Clock Line A" );
@@ -18,6 +18,7 @@ MapleBusAnalyzerSettings::MapleBusAnalyzerSettings()
     mOutputStyleInterface->AddNumber( OUTPUT_STYLE_EACH_BYTE, "Each Byte", "Show each byte" );
     mOutputStyleInterface->AddNumber( OUTPUT_STYLE_EACH_WORD, "Each Word (little endian)", "Show each word (little endian)" );
     mOutputStyleInterface->AddNumber( OUTPUT_STYLE_WORD_BYTES, "Word Bytes", "Show bytes, grouped by word" );
+    mOutputStyleInterface->AddNumber( OUTPUT_STYLE_WORD_BYTES_LE, "Word Bytes (little endian)", "Show bytes, grouped by word, little endian sorted" );
     mOutputStyleInterface->SetNumber( mOutputStyle );
 
 	AddInterface( mInputChannelAInterface.get() );

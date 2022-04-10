@@ -64,9 +64,14 @@ This is output style `Word Bytes`:
 ![sample_word_bytes](sample_word_bytes.jpg?raw=true)
 (F) stands for Frame Word, (C) stands for CRC byte, and (#) is the data word index where # is an integer value.
 
+This is output style `Word Bytes (little endian)`:
+![sample_word_bytes_le](sample_word_bytes_le.jpg?raw=true)
+(F) stands for Frame Word, (C) stands for CRC byte, and (#) is the data word index where # is an integer value.
+
 ### Running the Analyzer
 
-I recommend enabling the glitch filter at 20 ns on the channels set for SDCKA and SDCKB when making measurements on the Dreamcast.
+I recommend enabling the glitch filter at 50 ns on the channels set for SDCKA and SDCKB when making measurements on the Dreamcast.
+![glitch_filter_settings](glitch_filter_settings.jpg?raw=true)
 
 ### Data Generator
 

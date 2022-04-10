@@ -36,7 +36,6 @@ void MapleBusAnalyzerResults::DecodeData2( U64 data2, U32& numItemsLeftOut, Word
 
 void MapleBusAnalyzerResults::GenerateNumberStr( char* str, U32 len, const Frame& frame, DisplayBase display_base, bool forExport ) const
 {
-
     switch( mType )
     {
         default:
@@ -63,6 +62,7 @@ void MapleBusAnalyzerResults::GenerateNumberStr( char* str, U32 len, const Frame
         break;
 
         case Type::WORD_BYTES:
+        case Type::WORD_BYTES_LE:
         {
             U32 numItemsLeft = 0;
             WordType wordType = WORD_TYPE_NONE;
@@ -99,8 +99,14 @@ void MapleBusAnalyzerResults::GenerateNumberStr( char* str, U32 len, const Frame
                 {
                     format = "%s %s %s %s";
                 }
-                snprintf( str, len, format, number_strs[ 0 ], number_strs[ 1 ], number_strs[ 2 ],
-                          number_strs[ 3 ] );
+                if( mType == Type::WORD_BYTES )
+                {
+                    snprintf( str, len, format, number_strs[ 0 ], number_strs[ 1 ], number_strs[ 2 ], number_strs[ 3 ] );
+                }
+                else
+                {
+                    snprintf( str, len, format, number_strs[ 3 ], number_strs[ 2 ], number_strs[ 1 ], number_strs[ 0 ] );
+                }
             }
         }
         break;
@@ -110,22 +116,22 @@ void MapleBusAnalyzerResults::GenerateNumberStr( char* str, U32 len, const Frame
 U32 MapleBusAnalyzerResults::GenerateExtraInfoStr( char* str, U32 len, const Frame& frame, bool forExport ) const
 {
     U32 numItemsLeft = 0;
+    WordType wordType = WORD_TYPE_NONE;
+    DecodeData2( frame.mData2, numItemsLeft, wordType );
+
     switch( mType )
     {
         default:
         case Type::BYTE:
         {
-            numItemsLeft = static_cast<U32>( frame.mData2 );
             snprintf( str, len, "%u", numItemsLeft );
         }
         break;
 
         case Type::WORD:
         case Type::WORD_BYTES:
+        case Type::WORD_BYTES_LE:
         {
-            WordType wordType = WORD_TYPE_NONE;
-            DecodeData2( frame.mData2, numItemsLeft, wordType );
-
             char type_str[ 8 ] = {};
             switch( wordType )
             {
@@ -216,10 +222,15 @@ void MapleBusAnalyzerResults::GenerateExportFile( const char* file, DisplayBase 
         case Type::WORD_BYTES:
             file_stream << "Num Words, Sender Addr, Recipient Addr, Command, Data & CRC ->";
             break;
+
+        case Type::WORD_BYTES_LE:
+            file_stream << "Command, Recipient Addr, Sender Addr, Num Words, Data (little endian) & CRC ->";
+            break;
     }
 
 	U64 num_frames = GetNumFrames();
     U32 previousNumItemsLeft = 0;
+    WordType previousWordType = WORD_TYPE_NONE;
 	for( U32 i=0; i < num_frames; i++ )
 	{
 		Frame frame = GetFrame( i );
@@ -235,11 +246,13 @@ void MapleBusAnalyzerResults::GenerateExportFile( const char* file, DisplayBase 
 
         if( i == 0 ||
             ( numItemsLeft > 0 && previousNumItemsLeft == 0 ) || 
-            ( previousNumItemsLeft > 0 && previousNumItemsLeft - 1 != numItemsLeft ) )
+            ( previousNumItemsLeft > 0 && previousNumItemsLeft - 1 != numItemsLeft ) ||
+            ( previousWordType == WORD_TYPE_CRC && wordType != WORD_TYPE_CRC ) )
         {
             file_stream << std::endl << time_str << ",";
         }
         previousNumItemsLeft = numItemsLeft;
+        previousWordType = wordType;
 
 		file_stream << number_str << ",";
 
