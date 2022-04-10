@@ -23,10 +23,10 @@ KeepEmptyLinesAtTheStartOfBlocks: 'false'
 MaxEmptyLinesToKeep: '2'
 NamespaceIndentation: All
 PointerAlignment: Left
-SpaceBeforeParens: Never
+SpaceBeforeParens: ControlStatements
 SpaceInEmptyParentheses: 'false'
-SpacesInCStyleCastParentheses: 'true'
-SpacesInParentheses: 'true'
-SpacesInSquareBrackets: 'true'
+SpacesInCStyleCastParentheses: 'false'
+SpacesInParentheses: 'false'
+SpacesInSquareBrackets: 'false'
 TabWidth: '4'
 UseTab: Never

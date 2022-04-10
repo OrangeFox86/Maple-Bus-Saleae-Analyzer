@@ -24,6 +24,11 @@ public:
   private:
     void AlignSerialMarkers();
     void AdvanceToNeutral();
+    void AdvanceToNextStart();
+	//! @returns -1 if error was detected
+	//! @returns 0 if end was not detected
+	//! @returns 1 if end was detected
+    S32 CheckForEnd(AnalyzerChannelData* clock, AnalyzerChannelData* data);
 
   protected: //vars
 	std::auto_ptr< MapleBusAnalyzerSettings > mSettings;

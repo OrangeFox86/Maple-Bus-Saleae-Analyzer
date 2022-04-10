@@ -76,7 +76,106 @@ void MapleBusAnalyzer::AdvanceToNeutral()
             mSerialA->AdvanceToAbsPosition( mSerialB->GetSampleNumber() );
         }
     }
+}
 
+void MapleBusAnalyzer::AdvanceToNextStart()
+{
+    bool startFound = false;
+    while (!startFound)
+    {
+        AdvanceToNeutral();
+
+        mSerialA->AdvanceToNextEdge(); // falling edge -- beginning of the start sequence
+        U64 startSample = mSerialA->GetSampleNumber();
+        U64 endSample = mSerialA->GetSampleOfNextEdge(); // rising edge -- end of the start sequence
+
+        // Advance B to just before the start
+        mSerialB->AdvanceToAbsPosition(startSample - 1);
+
+        // Ensure B clocks 4 times within the start and end without advancing more than we need to
+        bool errorDetected = false;
+        for (U32 i = 0; i < 8 && !errorDetected; ++i)
+        {
+            U64 bSample = mSerialB->GetSampleOfNextEdge();
+
+            if (bSample >= endSample)
+            {
+                // B clocking didn't fall within the expected start sequence
+                errorDetected = true;
+            }
+            else
+            {
+                mSerialB->AdvanceToNextEdge();
+            }
+        }
+
+        // make sure there isn't another clock before endSample
+        if (!errorDetected && !mSerialB->WouldAdvancingToAbsPositionCauseTransition(endSample))
+        {
+            // If we made it here, a valid start sequence was detected
+            mSerialA->AdvanceToAbsPosition(endSample);
+            mSerialB->AdvanceToAbsPosition(endSample);
+            mResults->AddMarker(startSample, AnalyzerResults::Start, mSettings->mInputChannelA);
+            mResults->AddMarker(startSample, AnalyzerResults::Start, mSettings->mInputChannelB);
+            startFound = true;
+        }
+        else
+        {
+            // TODO: Log error
+        }
+    }
+}
+
+S32 MapleBusAnalyzer::CheckForEnd(AnalyzerChannelData* clock, AnalyzerChannelData* data)
+{
+    U64 clockEdgeSample = clock->GetSampleNumber();
+    U32 numDataEdges = data->AdvanceToAbsPosition(clockEdgeSample);
+    bool endDetected = false;
+    bool errorDetected = false;
+
+    if (numDataEdges == 2)
+    {
+        // Either we are reaching the end or error detected
+
+        U64 markerEnd = data->GetSampleOfNextEdge();
+        U32 numClockEdges = 0;
+
+        for (; numClockEdges < 3 && clock->GetSampleOfNextEdge() < markerEnd; ++numClockEdges)
+        {
+            // Go to rising then falling then rising
+            clock->AdvanceToNextEdge();
+        }
+
+        if (numClockEdges == 3 && !clock->WouldAdvancingToAbsPositionCauseTransition(markerEnd))
+        {
+            endDetected = true;
+            mResults->AddMarker(markerEnd, AnalyzerResults::Stop, mSettings->mInputChannelA);
+            mResults->AddMarker(markerEnd, AnalyzerResults::Stop, mSettings->mInputChannelB);
+            mSerialA->AdvanceToAbsPosition(markerEnd);
+            mSerialB->AdvanceToAbsPosition(markerEnd);
+        }
+        else
+        {
+            errorDetected = true;
+        }
+    }
+    else if (numDataEdges > 2)
+    {
+        errorDetected = true;
+    }
+
+    if (errorDetected)
+    {
+        return -1;
+    }
+    else if (endDetected)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 void MapleBusAnalyzer::WorkerThread()
@@ -89,72 +188,11 @@ void MapleBusAnalyzer::WorkerThread()
     {
         if( errorDetected )
         {
-            // These markers tend to collide with markers that matter
-            // mResults->AddMarker( mSerialA->GetSampleNumber(), AnalyzerResults::ErrorX, mSettings->mInputChannelA );
-            // mResults->AddMarker( mSerialB->GetSampleNumber(), AnalyzerResults::ErrorX, mSettings->mInputChannelB );
-        }
-
-        AdvanceToNeutral();
-
-        if(errorDetected)
-        {
-            // These markers tend to collide with markers that matter
-            // mResults->AddMarker( mSerialA->GetSampleNumber(), AnalyzerResults::UpArrow, mSettings->mInputChannelA );
-            // mResults->AddMarker( mSerialB->GetSampleNumber(), AnalyzerResults::UpArrow, mSettings->mInputChannelB );
+            // TODO: log error
             errorDetected = false;
         }
 
-		mSerialA->AdvanceToNextEdge(); // falling edge -- beginning of the start sequence
-        U64 startSample = mSerialA->GetSampleNumber();
-        U64 endSample = mSerialA->GetSampleOfNextEdge(); // rising edge -- end of the start sequence
-		
-		// Ensure B clocks 4 times within the start and end
-		for (U32 i = 0; i < 8 && !errorDetected; ++i)
-		{
-            U64 bSample = mSerialB->GetSampleOfNextEdge();
-
-            if( i==0 )
-            {
-                // Wait until B starts clocking within A
-                while( bSample < startSample )
-                {
-                    mSerialB->AdvanceToNextEdge();
-                    bSample = mSerialB->GetSampleOfNextEdge();
-                }
-            }
-
-            if( bSample >= endSample )
-            {
-                // B clocking didn't fall within the expected start sequence
-                // TODO: log this
-                errorDetected = true;
-            }
-            else
-            {
-                mSerialB->AdvanceToNextEdge();
-            }
-		}
-
-        if(errorDetected)
-        {
-            // try again
-            continue;
-        }
-        // check if there is another clock before endSample
-        else if( mSerialB->GetSampleOfNextEdge() < endSample )
-        {
-            // Too many clocks on B channel
-            // try again
-            errorDetected = true;
-            // TODO: log this
-            continue;
-        }
-
-        // If we made it here, a valid start sequence was detected
-        mSerialA->AdvanceToAbsPosition( endSample );
-        mSerialB->AdvanceToAbsPosition( endSample );
-        mResults->AddMarker( startSample, AnalyzerResults::Start, mSettings->mInputChannelA );
-        mResults->AddMarker( startSample, AnalyzerResults::Start, mSettings->mInputChannelB );
+        AdvanceToNextStart();
 
         bool endDetected = false;
         errorDetected = false;
@@ -203,62 +241,38 @@ void MapleBusAnalyzer::WorkerThread()
                 clock->AdvanceToNextEdge();
                 U64 clockEdgeSample = clock->GetSampleNumber();
 
-                U32 numDataEdges = 0;
                 if( i == 0 )
                 {
-                    // Check for END
-                    while( numDataEdges < 3 && data->GetSampleOfNextEdge() < clockEdgeSample )
+                    U32 checkStatus = CheckForEnd(clock, data);
+                    if (checkStatus < 0)
                     {
-                        if( numDataEdges < 2 )
+                        errorDetected = true;
+                    }
+                    else if (checkStatus > 0)
+                    {
+                        endDetected = true;
+                    }
+                }
+                else
+                {
+                    U32 numDataEdges = 0;
+                    while (numDataEdges < 2 && data->GetSampleOfNextEdge() < clockEdgeSample)
+                    {
+                        if (numDataEdges < 1)
                         {
                             data->AdvanceToNextEdge();
                         }
                         numDataEdges++;
                     }
-                    if( numDataEdges == 2 )
+
+                    if (numDataEdges > 1)
                     {
-                        // Either we reached the end or error detected
-                        U64 markerBegin = data->GetSampleNumber();
-                        U64 markerEnd = data->GetSampleOfNextEdge();
-                        U32 numClockEdges = 0;
-
-                        for( ; numClockEdges < 3 && clock->GetSampleOfNextEdge() < markerEnd; ++numClockEdges )
-                        {
-                            // Go to rising then falling then rising
-                            clock->AdvanceToNextEdge();
-                        }
-
-                        if( numClockEdges == 3 && clock->GetSampleOfNextEdge() > markerEnd )
-                        {
-                            endDetected = true;
-                            mResults->AddMarker( markerEnd, AnalyzerResults::Stop, mSettings->mInputChannelA );
-                            mResults->AddMarker( markerEnd, AnalyzerResults::Stop, mSettings->mInputChannelB );
-                            mSerialA->AdvanceToAbsPosition( markerEnd );
-                            mSerialB->AdvanceToAbsPosition( markerEnd );
-                        }
-                        else
-                        {
-                            errorDetected = true;
-                        }
-                        continue;
+                        // More than 1 data edge before clock is not allowed
+                        errorDetected = true;
                     }
                 }
 
-                while( numDataEdges < 2 && data->GetSampleOfNextEdge() < clockEdgeSample )
-                {
-                    if( numDataEdges < 1 )
-                    {
-                        data->AdvanceToNextEdge();
-                    }
-                    numDataEdges++;
-                }
-
-                if( numDataEdges > 1 )
-                {
-                    // More than 1 data edge before clock is not allowed
-                    errorDetected = true;
-                }
-                else
+                if (!endDetected && !errorDetected)
                 {
                     data->AdvanceToAbsPosition( clockEdgeSample );
                     clock->AdvanceToAbsPosition( clockEdgeSample );
