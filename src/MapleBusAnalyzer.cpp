@@ -10,6 +10,7 @@ MapleBusAnalyzer::MapleBusAnalyzer()
 	mSimulationInitilized( false )
 {
 	SetAnalyzerSettings( mSettings.get() );
+    ResetPacketData();
 }
 
 MapleBusAnalyzer::~MapleBusAnalyzer()
@@ -40,6 +41,11 @@ void MapleBusAnalyzer::SetupResults()
     SetAnalyzerResults( mResults.get() );
     mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannelA );
     mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannelB );
+}
+
+void MapleBusAnalyzer::LogError()
+{
+    // TODO
 }
 
 void MapleBusAnalyzer::AlignSerialMarkers()
@@ -76,6 +82,17 @@ void MapleBusAnalyzer::AdvanceToNeutral()
             mSerialA->AdvanceToAbsPosition( mSerialB->GetSampleNumber() );
         }
     }
+}
+
+void MapleBusAnalyzer::ResetPacketData()
+{
+    mTotalBytesExpected = -1;
+    mTotalWordsExpected = -1;
+    mNumBytesLeftExpected = -1;
+    mNumWordsLeftExpected = -1;
+    mByteCount = 0;
+    mCurrentWord = 0;
+    mWordStartingSample = 0;
 }
 
 void MapleBusAnalyzer::AdvanceToNextStart()
@@ -121,15 +138,13 @@ void MapleBusAnalyzer::AdvanceToNextStart()
         }
         else
         {
-            // TODO: Log error
+            LogError();
         }
     }
 }
 
-S32 MapleBusAnalyzer::CheckForEnd(AnalyzerChannelData* clock, AnalyzerChannelData* data)
+S32 MapleBusAnalyzer::CheckForEnd(AnalyzerChannelData* clock, AnalyzerChannelData* data, U32 numDataEdges)
 {
-    U64 clockEdgeSample = clock->GetSampleNumber();
-    U32 numDataEdges = data->AdvanceToAbsPosition(clockEdgeSample);
     bool endDetected = false;
     bool errorDetected = false;
 
@@ -178,6 +193,92 @@ S32 MapleBusAnalyzer::CheckForEnd(AnalyzerChannelData* clock, AnalyzerChannelDat
     }
 }
 
+void MapleBusAnalyzer::SaveByte(U64 startingSample, U8 theByte)
+{
+    ++mByteCount;
+
+    // Build word (little endian)
+    mCurrentWord = mCurrentWord >> 8;
+    mCurrentWord |= (static_cast<U32>(theByte) << 24);
+
+    if (mByteCount == 1)
+    {
+        // This is the first byte which tells us how many extra 32-bit words to expect
+        mTotalBytesExpected = theByte * 4;
+        // Add 4 bytes for the first frame
+        mTotalBytesExpected += 4;
+        // Add 1 byte for the CRC value
+        mTotalBytesExpected += 1;
+
+        mNumBytesLeftExpected = mTotalBytesExpected - 1;
+    }
+    else if (mNumBytesLeftExpected > 0)
+    {
+        --mNumBytesLeftExpected;
+    }
+
+    if (mResults->mType == MapleBusAnalyzerResults::Type::BYTE || mNumBytesLeftExpected == 0)
+    {
+        Frame frame;
+        frame.mData1 = theByte;
+        MapleBusAnalyzerResults::WordType wordType = MapleBusAnalyzerResults::WORD_TYPE_DATA;
+        if (mByteCount < 5)
+        {
+            wordType = MapleBusAnalyzerResults::WORD_TYPE_FRAME;
+        }
+        else if (mNumBytesLeftExpected == 0)
+        {
+            wordType = MapleBusAnalyzerResults::WORD_TYPE_CRC;
+        }
+        frame.mData2 = MapleBusAnalyzerResults::EncodeData2(mNumBytesLeftExpected, wordType);
+        frame.mFlags = 0;
+        frame.mStartingSampleInclusive = startingSample;
+        frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
+
+        mResults->AddFrame(frame);
+        mResults->CommitResults();
+        ReportProgress(frame.mEndingSampleInclusive);
+    }
+
+    if (mByteCount == 1)
+    {
+        mTotalWordsExpected = theByte + 1;
+        mNumWordsLeftExpected = mTotalWordsExpected;
+    }
+    else if (mByteCount % 4 == 0)
+    {
+        // We have a word to save
+        if (mNumWordsLeftExpected > 0)
+        {
+            --mNumWordsLeftExpected;
+        }
+
+        if (mResults->mType == MapleBusAnalyzerResults::Type::WORD || mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES ||
+            mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES_LE)
+        {
+            Frame frame;
+            frame.mData1 = mCurrentWord;
+            MapleBusAnalyzerResults::WordType wordType = MapleBusAnalyzerResults::WORD_TYPE_DATA;
+            if (mByteCount == 4)
+            {
+                wordType = MapleBusAnalyzerResults::WORD_TYPE_FRAME;
+            }
+            frame.mData2 = MapleBusAnalyzerResults::EncodeData2(mNumWordsLeftExpected, wordType);
+            frame.mStartingSampleInclusive = mWordStartingSample;
+            frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
+
+            mResults->AddFrame(frame);
+            mResults->CommitResults();
+        }
+        mCurrentWord = 0;
+    }
+
+    if (mByteCount % 4 == 1)
+    {
+        mWordStartingSample = startingSample;
+    }
+}
+
 void MapleBusAnalyzer::WorkerThread()
 {
 	mSerialA = GetAnalyzerChannelData( mSettings->mInputChannelA );
@@ -188,48 +289,30 @@ void MapleBusAnalyzer::WorkerThread()
     {
         if( errorDetected )
         {
-            // TODO: log error
+            LogError();
             errorDetected = false;
         }
 
+        // Wait for the start of the next packet
         AdvanceToNextStart();
+        ResetPacketData();
 
         bool endDetected = false;
-        errorDetected = false;
-        S32 totalBytesExpected = -1;
-        S32 totalWordsExpected = -1;
-        S32 numBytesLeftExpected = -1;
-        S32 numWordsLeftExpected = -1;
-        U32 byteCount = 0;
-        U32 word = 0;
-        U64 wordStartingSample = 0;
         while( !endDetected && !errorDetected )
         {
+            // Get the next byte
+
             U64 startingSample = mSerialA->GetSampleNumber();
             bool aIsClock = true;
-            U8 b = 0;
+            U8 currentByte = 0;
             U8 mask = 1 << 7;
             for( U32 i = 0; i < 8 && !endDetected && !errorDetected; i++, aIsClock = !aIsClock, mask = mask >> 1 )
             {
-                AnalyzerChannelData* clock = nullptr;
-                Channel clockChannel;
-                AnalyzerChannelData* data = nullptr;
-                Channel dataChannel;
-
-                if( aIsClock )
-                {
-                    clock = mSerialA;
-                    clockChannel = mSettings->mInputChannelA;
-                    data = mSerialB;
-                    dataChannel = mSettings->mInputChannelB;
-                }
-                else
-                {
-                    data = mSerialA;
-                    dataChannel = mSettings->mInputChannelA;
-                    clock = mSerialB;
-                    clockChannel = mSettings->mInputChannelB;
-                }
+                // Data and clock flip flop on each bit
+                AnalyzerChannelData* clock = aIsClock ? mSerialA : mSerialB;
+                Channel clockChannel = aIsClock ? mSettings->mInputChannelA : mSettings->mInputChannelB;
+                AnalyzerChannelData* data = aIsClock ? mSerialB : mSerialA;
+                Channel dataChannel = aIsClock ? mSettings->mInputChannelB : mSettings->mInputChannelA;
 
                 if( clock->GetBitState() == BIT_LOW )
                 {
@@ -240,10 +323,11 @@ void MapleBusAnalyzer::WorkerThread()
                 // Go to clock falling edge
                 clock->AdvanceToNextEdge();
                 U64 clockEdgeSample = clock->GetSampleNumber();
+                U32 numDataEdges = data->AdvanceToAbsPosition(clockEdgeSample);
 
                 if( i == 0 )
                 {
-                    U32 checkStatus = CheckForEnd(clock, data);
+                    U32 checkStatus = CheckForEnd(clock, data, numDataEdges);
                     if (checkStatus < 0)
                     {
                         errorDetected = true;
@@ -253,32 +337,18 @@ void MapleBusAnalyzer::WorkerThread()
                         endDetected = true;
                     }
                 }
-                else
+                else if (numDataEdges > 1)
                 {
-                    U32 numDataEdges = 0;
-                    while (numDataEdges < 2 && data->GetSampleOfNextEdge() < clockEdgeSample)
-                    {
-                        if (numDataEdges < 1)
-                        {
-                            data->AdvanceToNextEdge();
-                        }
-                        numDataEdges++;
-                    }
-
-                    if (numDataEdges > 1)
-                    {
-                        // More than 1 data edge before clock is not allowed
-                        errorDetected = true;
-                    }
+                    // More than 1 data edge before clock is not expected
+                    errorDetected = true;
                 }
 
                 if (!endDetected && !errorDetected)
                 {
-                    data->AdvanceToAbsPosition( clockEdgeSample );
-                    clock->AdvanceToAbsPosition( clockEdgeSample );
+                    // Valid bit detected
                     if( data->GetBitState() == BIT_HIGH )
                     {
-                        b |= mask;
+                        currentByte |= mask;
                     }
                     // let's put markers exactly where we sample this bit:
                     // mResults->AddMarker( clockEdgeSample, AnalyzerResults::Dot, dataChannel );
@@ -288,107 +358,8 @@ void MapleBusAnalyzer::WorkerThread()
 
             if( !endDetected && !errorDetected )
             {
-                // we have a byte to save.
-                ++byteCount;
-
-                if( byteCount == 1 )
-                {
-                    // This is the first byte which tells us how many extra 32-bit words to expect
-                    totalBytesExpected = b * 4;
-                    // Add 4 bytes for the first frame
-                    totalBytesExpected += 4;
-                    // Add 1 byte for the CRC value
-                    totalBytesExpected += 1;
-
-                    numBytesLeftExpected = totalBytesExpected - 1;
-                }
-                else if( numBytesLeftExpected > 0 )
-                {
-                    --numBytesLeftExpected;
-                }
-
-                if( mResults->mType == MapleBusAnalyzerResults::Type::BYTE )
-                {
-                    Frame frame;
-                    frame.mData1 = b;
-                    MapleBusAnalyzerResults::WordType wordType = MapleBusAnalyzerResults::WORD_TYPE_DATA;
-                    if( byteCount < 5 )
-                    {
-                        wordType = MapleBusAnalyzerResults::WORD_TYPE_FRAME;
-                    }
-                    else if( numBytesLeftExpected == 0 )
-                    {
-                        wordType = MapleBusAnalyzerResults::WORD_TYPE_CRC;
-                    }
-                    frame.mData2 = MapleBusAnalyzerResults::EncodeData2( numBytesLeftExpected, wordType );
-                    frame.mFlags = 0;
-                    frame.mStartingSampleInclusive = startingSample;
-                    frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
-
-                    mResults->AddFrame( frame );
-                    mResults->CommitResults();
-                    ReportProgress( frame.mEndingSampleInclusive );
-                }
-
-                // Build word for little endian
-                word = word >> 8;
-                word |= (static_cast<U32>( b ) << 24);
-
-                if( byteCount == 1 )
-                {
-                    totalWordsExpected = b + 1;
-                    numWordsLeftExpected = totalWordsExpected;
-                }
-                else if( byteCount % 4 == 0 )
-                {
-                    // We have a word to save
-                    if( numWordsLeftExpected > 0 )
-                    {
-                        --numWordsLeftExpected;
-                    }
-
-                    if( mResults->mType == MapleBusAnalyzerResults::Type::WORD || 
-                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES ||
-                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES_LE )
-                    {
-                        Frame frame;
-                        frame.mData1 = word;
-                        MapleBusAnalyzerResults::WordType wordType = MapleBusAnalyzerResults::WORD_TYPE_DATA;
-                        if( byteCount == 4 )
-                        {
-                            wordType = MapleBusAnalyzerResults::WORD_TYPE_FRAME;
-                        }
-                        frame.mData2 = MapleBusAnalyzerResults::EncodeData2( numWordsLeftExpected, wordType );
-                        frame.mStartingSampleInclusive = wordStartingSample;
-                        frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
-
-                        mResults->AddFrame( frame );
-                        mResults->CommitResults();
-                    }
-                    word = 0;
-                }
-                else if( numBytesLeftExpected == 0 )
-                {
-                    if( mResults->mType == MapleBusAnalyzerResults::Type::WORD ||
-                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES ||
-                        mResults->mType == MapleBusAnalyzerResults::Type::WORD_BYTES_LE )
-                    {
-                        // CRC byte
-                        Frame frame;
-                        frame.mData1 = b;
-                        frame.mData2 = MapleBusAnalyzerResults::EncodeData2( 0, MapleBusAnalyzerResults::WORD_TYPE_CRC );
-                        frame.mStartingSampleInclusive = startingSample;
-                        frame.mEndingSampleInclusive = mSerialB->GetSampleNumber();
-
-                        mResults->AddFrame( frame );
-                        mResults->CommitResults();
-                    }
-                }
-
-                if( byteCount % 4 == 1 )
-                {
-                    wordStartingSample = startingSample;
-                }
+                // we have a byte to save!
+                SaveByte(startingSample, currentByte);
             }
         }
 	}

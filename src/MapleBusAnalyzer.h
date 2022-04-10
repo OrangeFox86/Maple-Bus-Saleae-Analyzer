@@ -22,13 +22,16 @@ public:
 	virtual bool NeedsRerun();
 
   private:
+    void LogError();
     void AlignSerialMarkers();
     void AdvanceToNeutral();
+    void ResetPacketData();
     void AdvanceToNextStart();
 	//! @returns -1 if error was detected
 	//! @returns 0 if end was not detected
 	//! @returns 1 if end was detected
-    S32 CheckForEnd(AnalyzerChannelData* clock, AnalyzerChannelData* data);
+    S32 CheckForEnd(AnalyzerChannelData* clock, AnalyzerChannelData* data, U32 numDataEdges);
+    void SaveByte(U64 startingSample, U8 theByte);
 
   protected: //vars
 	std::auto_ptr< MapleBusAnalyzerSettings > mSettings;
@@ -38,6 +41,15 @@ public:
 
 	MapleBusSimulationDataGenerator mSimulationDataGenerator;
 	bool mSimulationInitilized;
+
+	// Packet state variables
+	S32 mTotalBytesExpected;
+    S32 mTotalWordsExpected;
+    S32 mNumBytesLeftExpected;
+    S32 mNumWordsLeftExpected;
+    U32 mByteCount;
+    U32 mCurrentWord;
+    U64 mWordStartingSample;
 };
 
 extern "C" ANALYZER_EXPORT const char* __cdecl GetAnalyzerName();
