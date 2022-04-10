@@ -131,17 +131,22 @@ void MapleBusAnalyzerResults::GenerateExtraInfoStr(char* str, U32 len, const Fra
     }
 }
 
-void MapleBusAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& channel, DisplayBase display_base)
+void MapleBusAnalyzerResults::GenerateBubbleText(char* str, U32 len, U64 frame_index, DisplayBase display_base)
 {
-    ClearResultStrings();
     Frame frame = GetFrame(frame_index);
 
     char number_str[64];
     GenerateNumberStr(number_str, sizeof(number_str), frame, display_base, false);
     char extra_info_str[32];
     GenerateExtraInfoStr(extra_info_str, sizeof(extra_info_str), frame);
+    snprintf(str, len, "%s (%s)", number_str, extra_info_str);
+}
+
+void MapleBusAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& channel, DisplayBase display_base)
+{
     char output_str[128];
-    snprintf(output_str, sizeof(output_str), "%s (%s)", number_str, extra_info_str);
+    GenerateBubbleText(output_str, sizeof(output_str), frame_index, display_base);
+    ClearResultStrings();
     AddResultString(output_str);
 }
 
@@ -215,9 +220,10 @@ void MapleBusAnalyzerResults::GenerateFrameTabularText(U64 frame_index, DisplayB
     Frame frame = GetFrame(frame_index);
     ClearTabularText();
 
-    char number_str[128];
-    AnalyzerHelpers::GetNumberString(frame.mData1, display_base, 8, number_str, 128);
-    AddTabularText(number_str);
+    // Use the same value generated for bubble text
+    char output_str[128];
+    GenerateBubbleText(output_str, sizeof(output_str), frame_index, display_base);
+    AddTabularText(output_str);
 #endif
 }
 

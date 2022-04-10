@@ -57,6 +57,8 @@ class MapleBusAnalyzerResults : public AnalyzerResults
     const DataFormat mDataFormat;
 
   protected: // functions
+    //! Generate bubble text into given string
+    void GenerateBubbleText(char* str, U32 len, U64 frame_index, DisplayBase display_base);
     //! Generates the number string for bubble text and export file
     //! @param[out] str  output string buffer
     //! @param[in] len  byte length of str
