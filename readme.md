@@ -6,23 +6,29 @@ Sega's Maple Bus is used on Dreamcast's controller interface.
 ## Build
 
 **Prerequisites**
+
 - For Windows: Visual Studio (Community Edition or better) https://visualstudio.microsoft.com/vs/
 - For other OS: Any CMake Builder
-- `git` command line executable (for Windows: https://gitforwindows.org/)
+- `git` command line executable 
+  - For Windows, use: https://gitforwindows.org/
 
-First, execute the following to pull down the AnalyzerSDK.
+**Getting the Saleae Analizer SDK**
+
+First, execute the following to pull down the AnalyzerSDK. This is the only dependency of this library.
 ```
 git submodule update --init --recursive
 ```
 
 **For Windows:**
+
 - Open Visual Studio
 - `File->Open->Folder...`
-  - Visual Studio will try to execute `git`, so it is necessary to have `git` on command line installed
 - Select this repo
+  - Visual Studio will try to execute `git`, so it is necessary to have `git` on command line installed
 - `Build->Build All`
 
 **For any other OS:**
+
 ```
 cd Maple-Bus-Saleae-Analyzer
 cmake .
@@ -57,6 +63,10 @@ This is output style `Each Word (little endian)`:
 This is output style `Word Bytes`:
 ![sample_word_bytes](sample_word_bytes.jpg?raw=true)
 (F) stands for Frame Word, (C) stands for CRC byte, and (#) is the data word index where # is an integer value.
+
+### Running the Analyzer
+
+I recommend enabling the glitch filter at 20 ns on the channels set for SDCKA and SDCKB when making measurements on the Dreamcast.
 
 ### Data Generator
 
