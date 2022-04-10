@@ -41,7 +41,8 @@ public:
 
   protected: //functions
     void GenerateNumberStr( char* str, U32 len, const Frame& frame, DisplayBase display_base, bool forExport ) const;
-    void GenerateExtraInfoStr( char* str, U32 len, const Frame& frame, bool forExport ) const;
+	// @returns number of frames left
+    U32 GenerateExtraInfoStr( char* str, U32 len, const Frame& frame, bool forExport ) const;
 
 protected:  //vars
 	MapleBusAnalyzerSettings* mSettings;

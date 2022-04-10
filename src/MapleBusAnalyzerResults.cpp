@@ -107,21 +107,22 @@ void MapleBusAnalyzerResults::GenerateNumberStr( char* str, U32 len, const Frame
     }
 }
 
-void MapleBusAnalyzerResults::GenerateExtraInfoStr( char* str, U32 len, const Frame& frame, bool forExport ) const
+U32 MapleBusAnalyzerResults::GenerateExtraInfoStr( char* str, U32 len, const Frame& frame, bool forExport ) const
 {
+    U32 numItemsLeft = 0;
     switch( mType )
     {
         default:
         case Type::BYTE:
         {
-            snprintf( str, len, "%u", static_cast<U32>( frame.mData2 ) );
+            numItemsLeft = static_cast<U32>( frame.mData2 );
+            snprintf( str, len, "%u", numItemsLeft );
         }
         break;
 
         case Type::WORD:
         case Type::WORD_BYTES:
         {
-            U32 numItemsLeft = 0;
             WordType wordType = WORD_TYPE_NONE;
             DecodeData2( frame.mData2, numItemsLeft, wordType );
 
@@ -175,6 +176,7 @@ void MapleBusAnalyzerResults::GenerateExtraInfoStr( char* str, U32 len, const Fr
         }
         break;
     }
+    return numItemsLeft;
 }
 
 void MapleBusAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base )
@@ -204,21 +206,20 @@ void MapleBusAnalyzerResults::GenerateExportFile( const char* file, DisplayBase 
     {
         default:
         case Type::BYTE:
-            file_stream << "Byte Value,Bytes Remaining in Packet";
+            file_stream << "Num Words, Sender Addr, Recipient Addr, Command, Data & CRC ->";
             break;
 
         case Type::WORD:
-            file_stream << "Word Value,Word Type";
+            file_stream << "Frame Word (little endian), Data & CRC ->";
             break;
 
         case Type::WORD_BYTES:
-            file_stream << "Byte1,Byte2,Byte3,Byte4,Word Type";
+            file_stream << "Num Words, Sender Addr, Recipient Addr, Command, Data & CRC ->";
             break;
     }
 
-    file_stream << std::endl;
-
 	U64 num_frames = GetNumFrames();
+    U32 previousNumItemsLeft = 0;
 	for( U32 i=0; i < num_frames; i++ )
 	{
 		Frame frame = GetFrame( i );
@@ -228,10 +229,19 @@ void MapleBusAnalyzerResults::GenerateExportFile( const char* file, DisplayBase 
 
         char number_str[ 64 ];
         GenerateNumberStr( number_str, sizeof( number_str ), frame, display_base, true );
-        char extra_info_str[ 32 ];
-        GenerateExtraInfoStr( extra_info_str, sizeof( extra_info_str ), frame, true );		
+        U32 numItemsLeft = 0;
+        WordType wordType = WORD_TYPE_NONE;
+        DecodeData2( frame.mData2, numItemsLeft, wordType );
 
-		file_stream << time_str << "," << number_str << "," << extra_info_str << std::endl;
+        if( i == 0 ||
+            ( numItemsLeft > 0 && previousNumItemsLeft == 0 ) || 
+            ( previousNumItemsLeft > 0 && previousNumItemsLeft - 1 != numItemsLeft ) )
+        {
+            file_stream << std::endl << time_str << ",";
+        }
+        previousNumItemsLeft = numItemsLeft;
+
+		file_stream << number_str << ",";
 
 		if( UpdateExportProgressAndCheckForCancel( i, num_frames ) == true )
 		{
