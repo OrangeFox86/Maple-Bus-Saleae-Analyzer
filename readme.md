@@ -71,6 +71,7 @@ This is output style `Word Bytes (little endian)`:
 ### Running the Analyzer
 
 I recommend enabling the glitch filter at 50 ns on the channels set for SDCKA and SDCKB when making measurements on the Dreamcast.
+
 ![glitch_filter_settings](glitch_filter_settings.jpg?raw=true)
 
 ### Data Generator
