@@ -129,22 +129,12 @@ void MapleBusAnalyzer::AdvanceToNextStart()
         // make sure there isn't another clock before endSample
         if (!errorDetected && !mSerialB->WouldAdvancingToAbsPositionCauseTransition(endSample))
         {
-            // End sequence is not complete until B transitions back low
+            // If we made it here, a valid start sequence was detected
             mSerialA->AdvanceToAbsPosition(endSample);
-            endSample = mSerialB->GetSampleOfNextEdge();
-            if (!mSerialA->WouldAdvancingToAbsPositionCauseTransition(endSample))
-            {
-                // If we made it here, a valid start sequence was detected
-                mSerialA->AdvanceToAbsPosition(endSample);
-                mSerialB->AdvanceToAbsPosition(endSample);
-                mResults->AddMarker(startSample, AnalyzerResults::Start, mSettings->mInputChannelA);
-                mResults->AddMarker(startSample, AnalyzerResults::Start, mSettings->mInputChannelB);
-                startFound = true;
-            }
-            else
-            {
-                LogError();
-            }
+            mSerialB->AdvanceToAbsPosition(endSample);
+            mResults->AddMarker(startSample, AnalyzerResults::Start, mSettings->mInputChannelA);
+            mResults->AddMarker(startSample, AnalyzerResults::Start, mSettings->mInputChannelB);
+            startFound = true;
         }
         else
         {
