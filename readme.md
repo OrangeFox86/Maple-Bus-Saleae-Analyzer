@@ -3,6 +3,10 @@
 Sega's Maple Bus is used on Dreamcast's controller interface.
 ![sample](sample.jpg?raw=true)
 
+## Maple Bus
+
+Refer to the **Generating Maple Bus Output** section of the [README](https://github.com/Tails86/DreamcastControllerUsbPico/blob/main/README.md) in my [DreamcastControllerUsbPico](https://github.com/Tails86/DreamcastControllerUsbPico) repository for a description of what the signals of a Maple Bus looks like.
+
 ## Build
 
 **Prerequisites**
